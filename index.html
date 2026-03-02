@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AD-HTC Fuel-Enhanced Gas Cycle</title>
+    <!-- Modern Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Controls -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i class="fa-solid fa-leaf text-gradient"></i>
+                <h2>AD-HTC <span class="text-gradient">Cycle</span></h2>
+            </div>
+
+            <div class="control-group">
+                <h3>System Parameters</h3>
+
+                <div class="input-field">
+                    <label for="compPressure">Compressor Pressure Ratio</label>
+                    <input type="number" id="compPressure" value="8" min="2" max="25" step="0.5">
+                </div>
+
+                <div class="input-field">
+                    <label for="turbineInletTemp">Turbine Inlet Temp (K)</label>
+                    <input type="number" id="turbineInletTemp" value="1200" min="600" max="1600" step="10">
+                </div>
+
+                <div class="input-field">
+                    <label for="biomassRate">Biomass Feed Rate (kg/s)</label>
+                    <input type="number" id="biomassRate" value="5" min="1" max="50" step="1">
+                </div>
+
+                <div class="input-field">
+                    <label for="htcTemp">HTC Reactor Temp (°C)</label>
+                    <input type="number" id="htcTemp" value="200" min="180" max="260" step="5">
+                </div>
+            </div>
+
+            <button id="analyzeBtn" class="primary-btn">
+                <i class="fa-solid fa-chart-line"></i> Analyze Cycle
+            </button>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- Dashboard Top: Schematic Visualization -->
+            <section class="schematic-section glass-panel">
+                <div class="section-header">
+                    <h3><i class="fa-solid fa-diagram-project"></i> System Schematic</h3>
+                    <div class="status-indicator">
+                        <span class="dot idle" id="statusDot"></span>
+                        <span id="statusText">System Idle</span>
+                    </div>
+                </div>
+
+                <div class="schematic-container">
+                    <!-- Flow lines (SVG) -->
+                    <svg class="flow-lines" preserveAspectRatio="none" style="width:100%; height:100%;">
+                        <defs>
+                            <marker id="arrow-air" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
+                                markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--flow-air)" />
+                            </marker>
+                            <marker id="arrow-biogas" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
+                                markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--flow-biogas)" />
+                            </marker>
+                            <marker id="arrow-exhaust" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
+                                markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--flow-exhaust)" />
+                            </marker>
+                            <marker id="arrow-biomass" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
+                                markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5a2b" />
+                            </marker>
+                        </defs>
+
+                        <!-- Air/Gas Path Bottom -->
+                        <path class="flow-path air-flow" d="M 50,260 L 160,260" marker-end="url(#arrow-air)" />
+                        <path class="flow-path comp-cmb" d="M 280,260 C 330,260 350,225 400,225"
+                            marker-end="url(#arrow-air)" />
+                        <path class="flow-path cmb-turb" d="M 550,225 C 600,225 610,260 660,260"
+                            marker-end="url(#arrow-exhaust)" />
+                        <path class="flow-path exhaust" d="M 760,260 L 890,260" marker-end="url(#arrow-exhaust)" />
+
+                        <!-- Biomass/Biogas Path Top -->
+                        <path class="flow-path biomass-htc" d="M 80,100 L 180,100" marker-end="url(#arrow-biomass)" />
+                        <path class="flow-path htc-ad" d="M 320,100 L 380,100" marker-end="url(#arrow-biomass)" />
+                        <path class="flow-path ad-cmb" d="M 460,140 C 460,180 475,210 490,210"
+                            marker-end="url(#arrow-biogas)" />
+                        <path class="flow-path ad-bldg" d="M 530,100 L 620,100" class="flow-path"
+                            style="stroke: var(--flow-biogas); stroke-dasharray: 6;" marker-end="url(#arrow-biogas)" />
+
+                        <!-- Steam Loop on HTC -->
+                        <path class="flow-path htc-steam" d="M 260,60 C 280,20 220,20 240,60" fill="none" />
+
+                        <!-- Shaft connecting Comp, Turb, Gen -->
+                        <path class="flow-path shaft" d="M 220,260 L 840,260" />
+                    </svg>
+
+                    <!-- Nodes -->
+                    <!-- Top Row: Biomass -> HTC -> AD -> Building -->
+                    <div class="node node-raw" style="top: 80px; left: 10px;">Biomass Feed</div>
+
+                    <div class="node node-reactor" style="top: 60px; left: 200px; width: 120px;">
+                        <i class="fa-solid fa-flask"></i>
+                        <span>HTC System</span>
+                        <div class="steam-loop">Steam Mgt</div>
+                    </div>
+
+                    <div class="node node-ad" style="top: 70px; left: 400px; width: 130px;">
+                        <i class="fa-solid fa-bacterium"></i>
+                        <span>Anaerobic Digestion</span>
+                    </div>
+
+                    <div class="node node-building output-node" style="top: 70px; left: 640px; width: 160px;">
+                        <i class="fa-solid fa-house-chimney"></i> Building Envelopes
+                    </div>
+
+                    <!-- Bottom Row: Air -> Comp -> Combustor -> Turb -> Gen -> Exhaust -->
+                    <div class="node node-ambient" style="top: 245px; left: 5px;">Air In</div>
+
+                    <div class="node component comp" style="top: 230px; left: 180px;">Compressor</div>
+                    <div class="node component combustor" style="top: 195px; left: 400px; padding: 10px;">Combustion
+                        <br> Chamber</div>
+                    <div class="node component turb" style="top: 230px; left: 660px;">Turbine</div>
+                    <div class="node component generator" style="top: 240px; left: 800px; width: 90px; height: 40px;">
+                        Generator</div>
+
+                    <div class="node node-ambient" style="top: 245px; left: 910px;">Exhaust</div>
+                </div>
+            </section>
+
+            <!-- Dashboard Bottom: Analysis Charts -->
+            <section class="charts-section">
+                <!-- HTC h-s Chart -->
+                <div class="chart-container glass-panel">
+                    <div class="section-header">
+                        <h3><i class="fa-solid fa-water"></i> HTC Steam Cycle (h-s Diagram)</h3>
+                    </div>
+                    <div id="hsChart" class="plotly-chart">
+                        <div class="placeholder-msg">Click 'Analyze Cycle' to generate plot</div>
+                    </div>
+                </div>
+
+                <!-- Gas Cycle T-H dot Chart -->
+                <div class="chart-container glass-panel">
+                    <div class="section-header">
+                        <h3><i class="fa-solid fa-fire-flame-curved"></i> Gas Cycle (T-Ḣ Diagram)</h3>
+                    </div>
+                    <div id="thChart" class="plotly-chart">
+                        <div class="placeholder-msg">Click 'Analyze Cycle' to generate plot</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
